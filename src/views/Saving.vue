@@ -5,11 +5,13 @@
 <script>
 import { mapActions } from "vuex";
 export default {
-  name: "Home",
+  name: "Saving",
   components: {},
   methods: mapActions(["updatePageTitle"]),
   created() {
-    this.updatePageTitle("Home");
+    this.updatePageTitle("Saving");
   },
 };
 </script>
+
+<style></style>
