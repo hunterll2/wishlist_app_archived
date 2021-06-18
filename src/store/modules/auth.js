@@ -6,12 +6,13 @@ export default {
 
   state: {
     authId: null,
+    user: null,
     unsubscribeAuthObserver: null,
   },
 
   getters: {
-    authUser(state, getters, rootState) {
-      return state.authId ? rootState.users.items[state.authId] : null;
+    getAuthUser(state) {
+      return state.user;
     },
   },
 
@@ -24,11 +25,13 @@ export default {
         }
 
         const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
-          console.log("👣 the user has changed", user);
+          console.log("👣 the user has changed");
 
           if (user) {
+            commit("SET_AUTH_USER", user);
             resolve(user);
           } else {
+            commit("SET_AUTH_USER", null);
             resolve(null);
           }
         });
@@ -67,6 +70,10 @@ export default {
   mutations: {
     setAuthId(state, id) {
       state.authId = id;
+    },
+
+    SET_AUTH_USER(state, user) {
+      state.user = user;
     },
 
     setUnsubscribeAuthObserver(state, unsubscribe) {

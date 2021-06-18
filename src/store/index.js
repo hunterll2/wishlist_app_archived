@@ -2,6 +2,7 @@ import Vue from "vue";
 import Vuex from "vuex";
 import auth from "./modules/auth";
 import user from "./modules/user";
+import db from "./modules/db";
 
 Vue.use(Vuex);
 
@@ -19,5 +20,5 @@ export default new Vuex.Store({
       commit("UPDATE_PAGE_TITLE", title);
     },
   },
-  modules: { auth, user },
+  modules: { auth, user, db },
 });
