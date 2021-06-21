@@ -36,3 +36,15 @@ export const FetchSetOfDocs = (collection, condition) => {
       throw e;
     });
 };
+
+export const AddDoc = (collection, data) => {
+  return firebase.firestore().collection(collection).add(data);
+};
+
+export const UpdateDoc = (collection, doc, data) => {
+  return firebase.firestore().collection(collection).doc(doc).update(data);
+};
+
+export const DeleteDoc = (collection, doc) => {
+  return firebase.firestore().collection(collection).doc(doc).delete();
+};
