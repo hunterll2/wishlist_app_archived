@@ -1,15 +1,18 @@
 <template>
   <v-btn
-    text
+    :block="!!block"
+    :text="type == 'text'"
     :small="size == 'small'"
     :x-small="size == 'x-small'"
-    :icon="!!icon"
+    :icon="!!icon && !label"
     :color="color"
     :loading="loading"
-    class="text-capitalize"
+    class="text-capitalize justify-start"
     @click="$emit('click')"
   >
-    <v-icon v-if="icon" :left="label">mdi-{{ icon }}</v-icon>
+    <v-icon v-if="icon" :large="iconSize == 'large'" :left="!!label">
+      mdi-{{ icon }}
+    </v-icon>
     {{ label }}
   </v-btn>
 </template>
@@ -25,6 +28,15 @@ export default {
       type: String,
       default: "small",
     },
+    iconSize: {
+      type: String,
+      default: undefined,
+    },
+    type: {
+      type: String,
+      default: "text",
+    },
+    block: Boolean,
   },
 };
 </script>
