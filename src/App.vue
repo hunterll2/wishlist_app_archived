@@ -39,7 +39,7 @@
       <router-view />
     </v-main>
 
-    <v-bottom-navigation shift>
+    <v-bottom-navigation shift app>
       <v-btn exact :to="{ name: 'Home' }">
         <span>Home</span>
         <v-icon>mdi-home</v-icon>
