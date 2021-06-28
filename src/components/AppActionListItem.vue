@@ -1,6 +1,10 @@
 <template>
-  <v-list-item v-ripple two-line>
-    <v-list-item-action v-if="!!this.$slots.action" class="pa-0 ma-0 mr-2">
+  <v-list-item v-ripple two-line @click.stop="$emit('item-click')">
+    <v-list-item-action
+      v-if="!!this.$slots.action"
+      class="pa-0 ma-0 mr-2"
+      @click.stop="$emit('action-click')"
+    >
       <slot name="action"></slot>
     </v-list-item-action>
 
@@ -13,7 +17,10 @@
       </v-list-item-subtitle>
     </v-list-item-content>
 
-    <v-list-item-action class="align-center align-self-center">
+    <v-list-item-action
+      v-if="!this.$slots.action"
+      class="align-center align-self-center"
+    >
       <span>{{ action }}</span>
       <v-list-item-action-text>
         {{ actionText }}

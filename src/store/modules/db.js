@@ -16,13 +16,14 @@ export default {
     /*
     [
       {
-        name,
-        total_cost,
-        priority,
-        done,
-        progress,
-        due_date,
-        user
+       id,
+       name,
+       total_cost,
+       total_items,
+       total_done,
+       due_date,
+       priority,
+       user
       }
     ]
     */
@@ -36,8 +37,8 @@ export default {
             id,
             name,
             cost,
-            priority,
             done,
+            priority,
           }
         ]
       }
@@ -52,8 +53,8 @@ export default {
           {
             name,
             cost,
-            priority,
             done,
+            priority,
           }
         ]
       }
@@ -150,19 +151,19 @@ export default {
       }
     },
 
-    CHANGE_ITEM_STATUS(state, { parentWishlist, parentItem, item }) {
+    CHANGE_ITEM_STATUS(state, { parentWishlist, parentItem, id, done }) {
       let targetParent, targetItem;
 
       if (parentItem) {
         targetParent = state.subitems.find((obj) => obj.item === parentItem);
-        targetItem = targetParent.subitems.find((obj) => obj.id === item.id);
-        targetItem.done = !item.done;
+        targetItem = targetParent.subitems.find((obj) => obj.id === id);
+        targetItem.done = done;
       } else {
         targetParent = state.wishlistItems.find(
           (obj) => obj.wishlist === parentWishlist
         );
-        targetItem = targetParent.items.find((obj) => obj.id === item.id);
-        targetItem.done = !item.done;
+        targetItem = targetParent.items.find((obj) => obj.id === id);
+        targetItem.done = done;
       }
     },
   },
@@ -216,13 +217,13 @@ export default {
         name,
         priority,
         due_date,
-        done: false,
-        progress: 0,
         total_cost: 0,
+        total_items: 0,
+        total_done: 0,
         user: userId,
       };
 
-      AddDoc("wishlist", newWishlistObj).then((wishlist) => {
+      return AddDoc("wishlist", newWishlistObj).then((wishlist) => {
         // update localy
         commit("Add_NEW_WISHLIST_INTO_STATE", {
           id: wishlist.id,
@@ -246,7 +247,7 @@ export default {
       });
     },
     deleteWishlist({ commit }, { id }) {
-      DeleteDoc("wishlist", id).then(() => {
+      return DeleteDoc("wishlist", id).then(() => {
         commit("REMOVE_WISHLIST_FROM_STATE", id);
       });
     },
@@ -255,7 +256,7 @@ export default {
     addNewItem({ commit }, { name, cost, priority, wishlistId, parentId }) {
       const newItemObj = {
         name,
-        cost,
+        cost: Number(cost),
         priority,
         done: false,
       };
@@ -265,7 +266,7 @@ export default {
           ? `wishlist/${wishlistId}/items/${parentId}/items`
           : `wishlist/${wishlistId}/items`;
 
-      AddDoc(path(), newItemObj).then((newItem) => {
+      return AddDoc(path(), newItemObj).then((newItem) => {
         // update localy
         commit("Add_NEW_ITEM_INTO_STATE", {
           wishlistId,
@@ -275,12 +276,14 @@ export default {
             ...newItemObj,
           },
         });
+        // for newly added items, save it also in subitems array
+        commit("SAVE_SUBITEMS", { itemId: newItem.id, subitems: [] });
       });
     },
     updateItem({ commit }, { id, name, cost, priority, wishlistId, parentId }) {
       const itemObj = {
         name,
-        cost,
+        cost: Number(cost),
         priority,
       };
 
@@ -289,16 +292,16 @@ export default {
           ? `wishlist/${wishlistId}/items/${parentId}/items`
           : `wishlist/${wishlistId}/items`;
 
-      UpdateDoc(path(), id, itemObj);
-
-      // update localy
-      commit("UPDATE_ITEM", {
-        wishlistId,
-        parentId,
-        itemObj: {
-          id,
-          ...itemObj,
-        },
+      return UpdateDoc(path(), id, itemObj).then(() => {
+        // update localy
+        commit("UPDATE_ITEM", {
+          wishlistId,
+          parentId,
+          itemObj: {
+            id,
+            ...itemObj,
+          },
+        });
       });
     },
     deleteItem({ commit }, { id, wishlistId, parentId }) {
@@ -307,22 +310,28 @@ export default {
           ? `wishlist/${wishlistId}/items/${parentId}/items`
           : `wishlist/${wishlistId}/items`;
 
-      DeleteDoc(path(), id).then(() => {
-        commit("REMOVE_ITEM_FROM_STATE", { wishlistId, parentId, id });
-      });
+      return DeleteDoc(path(), id)
+        .then(() => {
+          commit("REMOVE_ITEM_FROM_STATE", { wishlistId, parentId, id });
+        })
+        .catch((e) => console.log(e));
     },
-    changeItemStatus({ commit }, { parentWishlist, parentItem, item }) {
-      console.log(parentWishlist, parentItem, item);
+    changeItemStatus({ commit }, { parentWishlist, parentItem, id, done }) {
       const path = () =>
         parentItem
           ? `wishlist/${parentWishlist}/items/${parentItem}/items`
           : `wishlist/${parentWishlist}/items`;
 
-      UpdateDoc(path(), item.id, {
-        done: !item.done,
+      UpdateDoc(path(), id, {
+        done: !done,
       });
 
-      commit("CHANGE_ITEM_STATUS", { parentWishlist, parentItem, item });
+      commit("CHANGE_ITEM_STATUS", {
+        parentWishlist,
+        parentItem,
+        id,
+        done: !done,
+      });
     },
   },
 };

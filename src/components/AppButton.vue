@@ -2,15 +2,23 @@
   <v-btn
     :block="!!block"
     :text="type == 'text'"
+    :tile="type == 'tile'"
+    :rounded="type == 'button-icon'"
     :small="size == 'small'"
     :x-small="size == 'x-small'"
-    :icon="!!icon && !label"
+    :icon="!!icon && !label && type != 'button-icon'"
     :color="color"
     :loading="loading"
-    class="text-capitalize justify-start"
+    class="text-capitalize"
+    :class="{ 'justify-start': type != 'button-icon' }"
     @click="$emit('click')"
   >
-    <v-icon v-if="icon" :large="iconSize == 'large'" :left="!!label">
+    <v-icon
+      v-if="icon"
+      :large="iconSize == 'large'"
+      :small="iconSize == 'small'"
+      :left="!!label"
+    >
       mdi-{{ icon }}
     </v-icon>
     {{ label }}

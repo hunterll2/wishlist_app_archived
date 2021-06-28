@@ -1,41 +1,78 @@
 <template>
-  <v-list-item two-line>
-    <v-list-item-action v-if="!!this.$slots.action" class="pa-0 ma-0 mr-2">
+  <v-list-item dense>
+    <v-list-item-action v-if="!!this.$slots.action" class="pa-0 ma-0">
       <slot name="action"></slot>
     </v-list-item-action>
 
     <v-list-item-content>
       <v-list-item-title>
-        <app-text-field :value="name" shape="box" />
-      </v-list-item-title>
-      <v-list-item-subtitle>
-        <app-text-field :value="cost" shape="box" />
-      </v-list-item-subtitle>
-    </v-list-item-content>
+        <v-row no-gutters v-if="cost">
+          <v-col cols="7">
+            <app-text-field
+              v-model="localName"
+              shape="flat"
+              tile
+              dense
+              @change="sentUpdateReq"
+            />
+          </v-col>
+          <v-col>
+            <app-text-field
+              v-model="localCost"
+              shape="flat"
+              suffix="SAR"
+              @change="sentUpdateReq"
+            />
+          </v-col>
+        </v-row>
 
-    <!-- <v-list-item-action class="align-center align-self-center">
-      <span>{{ action }}</span>
-      <v-list-item-action-text>
-        {{ actionText }}
-      </v-list-item-action-text>
-    </v-list-item-action> -->
+        <app-text-field
+          v-else
+          v-model="localName"
+          shape="flat"
+          tile
+          dense
+          @change="sentUpdateReq"
+        />
+      </v-list-item-title>
+    </v-list-item-content>
   </v-list-item>
 </template>
 
 <script>
 export default {
   props: {
-    action: [String, Number],
-    actionText: String,
-    done: Boolean,
     name: String,
-    cost: [String, Number],
     subtitle: String,
+    cost: [String, Number],
   },
   data() {
     return {
       controls: false,
+      localName: "",
+      localCost: "",
     };
+  },
+  created() {
+    this.localName = this.name;
+    this.localCost = this.cost;
+  },
+  methods: {
+    sentUpdateReq() {
+      this.$emit("update-item", {
+        name: this.localName,
+        cost: this.localCost,
+      });
+    },
   },
 };
 </script>
+
+<style>
+.v-list-item--dense .v-list-item__title,
+.v-list-item--dense .v-list-item__subtitle,
+.v-list--dense .v-list-item .v-list-item__title,
+.v-list--dense .v-list-item .v-list-item__subtitle {
+  font-weight: normal !important;
+}
+</style>

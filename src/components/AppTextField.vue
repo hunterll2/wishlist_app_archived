@@ -2,9 +2,9 @@
   <v-text-field
     solo
     :flat="shape == 'flat'"
-    :dense="shape == 'flat'"
-    :class="{ 'rounded-0': shape == 'flat' }"
+    :dense="shape == 'flat' || dense"
     hide-details
+    :class="{ 'rounded-0': shape == 'flat' || tile }"
     :type="type"
     :label="label"
     :placeholder="placeholder"
@@ -29,6 +29,9 @@
           @click="$emit('decrease')"
         />
       </div>
+    </template>
+    <template #append>
+      <slot name="append" />
     </template>
   </v-text-field>
 </template>
@@ -58,6 +61,8 @@ export default {
       default: "flat",
       validator: (val) => ["", "flat", "box"].includes(val),
     },
+    dense: Boolean,
+    tile: Boolean,
   },
 };
 </script>

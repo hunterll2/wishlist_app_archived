@@ -1,156 +1,71 @@
 <template>
-  <v-container>
-    <v-toolbar rounded>
-      <v-toolbar-title @click="opendWishlist = null">
-        <!-- <v-icon v-if="opendWishlist">
-          mdi-arrow-left-thin-circle-outline
-        </v-icon> -->
-        <v-fab-transition>
-          <app-button
-            v-if="opendWishlist"
-            icon="arrow-left-thin-circle-outline"
+  <v-container id="home">
+    <wishlist-top-bar
+      :back-button="!edit ? getCurrentOpendName : undefined"
+      @back="close()"
+      @edit="edit = true"
+      @view="edit = false"
+    />
+
+    <v-card :loading="loading">
+      <!-- Header -->
+      <v-card-title class="pa-2 text-body-1">
+        <template v-if="!edit">
+          <app-progress-circle
+            :percentage="completionPercentage"
+            :label="`${totalDone} of ${items.length} done`"
           />
-        </v-fab-transition>
-      </v-toolbar-title>
-
-      <v-spacer></v-spacer>
-
-      <app-button label="Info" @click="infoSheet = true" />
-
-      <app-button label="Edit" @click="editSheet = true" color="primary" />
-
-      <template #extension>
-        <v-progress-circular value="50" size="16" width="2" color="primary" />
-        <div class="text--secondary text-body-2 ml-2">3 of 5 done</div>
-        <v-spacer />
-        <wishlist-page-sort />
-      </template>
-    </v-toolbar>
-
-    <v-card class="mt-6">
-      <v-card-text v-if="!opendWishlist" class="pa-0">
-        <template v-for="(item, i) in all_wishlist">
-          <app-action-list-item
-            :key="item.id"
-            :action="item.progress + 100 + '%'"
-            :action-text="`0 of ${item.total_items}`"
-            :done="item.done"
-            :name="item.name"
-            :subtitle="computedCost(item.total_cost) + ' SAR'"
-            @click.native="open(item)"
+          <v-spacer />
+          <wishlist-page-sort
+            :sort-methods="getSortMethods"
+            @sort-method-changed="changeSortMethod"
           />
-          <v-divider v-if="i + 1 < all_wishlist.length" :key="'divider-' + i" />
         </template>
+
+        <wishlist-page-form
+          v-else
+          :type="depth > 0 ? 'item' : 'wishlist'"
+          @add-item="operation('add', $event)"
+        />
+      </v-card-title>
+      <v-divider />
+
+      <!-- Content -->
+      <v-card-text
+        class="pa-0 fixed-height-container"
+        :style="{ 'max-height': getSuitableHeight + 'px' }"
+      >
+        <wishlist-items
+          v-if="!edit"
+          :items="items"
+          @open-item="open"
+          @change-status="operation('change_status', $event)"
+        />
+        <wishlist-items-edit
+          v-else
+          :items="items"
+          @update-item="operation('update', $event)"
+          @delete-item="operation('delete', $event)"
+        />
       </v-card-text>
 
-      <v-card-text v-else class="pa-0">
-        <template v-for="(item, i) in items">
-          <app-action-list-item
-            :key="item.id"
-            :name="item.name"
-            :subtitle="computedCost(item.cost) + ' SAR'"
-            :done="item.done"
-          >
-            <template #action>
-              <app-button
-                :icon="`checkbox-${
-                  item.done ? 'marked' : 'blank'
-                }-circle-outline`"
-                @click="changeStatus(item)"
-              />
-            </template>
-          </app-action-list-item>
+      <!-- Bottom -->
+      <div v-if="!edit" class="center-floating-button">
+        <app-button
+          :icon="`arrow-${showDetails ? 'down' : 'up'}-drop-circle-outline`"
+          type="button-icon"
+          icon-size="small"
+          color="white"
+          @click="showDetails = !showDetails"
+        />
+      </div>
 
-          <v-divider v-if="i + 1 < items.length" :key="'divider-' + i" />
-        </template>
-      </v-card-text>
+      <v-divider />
+
+      <v-card-actions v-if="showDetails" class="text-caption d-block">
+        <app-simple-table :items="costStats" />
+      </v-card-actions>
     </v-card>
-
-    <v-bottom-sheet v-model="infoSheet">
-      <v-card>
-        <v-card-text>
-          <v-row>
-            <v-col>Total Cost:</v-col>
-            <v-col class="text-right">8,400 SAR</v-col>
-          </v-row>
-          <v-divider class="my-1" />
-          <v-row>
-            <v-col>Total Spent:</v-col>
-            <v-col class="text-right">4,400 SAR</v-col>
-          </v-row>
-          <v-divider class="my-1" />
-          <v-row>
-            <v-col>Remaing Cost:</v-col>
-            <v-col class="text-right">4,000 SAR</v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
-    </v-bottom-sheet>
-
-    <v-bottom-sheet v-model="editSheet">
-      <v-card>
-        <v-card-text>
-          <v-row>
-            <v-col>
-              <app-text-field label="Name" value="Office" shape="box" />
-            </v-col>
-          </v-row>
-          <v-row no-gutters align="center" class="mt-4">
-            <v-col cols="5" class="text-body-1">Priority</v-col>
-            <v-col>
-              <v-btn-toggle mandatory dense>
-                <app-button label="Low" />
-                <app-button label="Normal" />
-                <app-button label="high" />
-              </v-btn-toggle>
-            </v-col>
-          </v-row>
-          <v-row no-gutters align="center" class="mt-4">
-            <v-col cols="5">
-              <v-checkbox label="Due Date" dense hide-details />
-            </v-col>
-            <v-col>
-              <v-select
-                :items="[2021, 2022, 2023]"
-                label="Year"
-                hide-details
-                dense
-              />
-            </v-col>
-            <v-col>
-              <v-select
-                :items="[1, 2, 3, 4, 5, 6]"
-                label="Month"
-                hide-details
-                dense
-              />
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
-    </v-bottom-sheet>
-
-    <v-bottom-sheet v-model="addSheet">
-      <v-card>
-        <v-card-text>
-          <v-row>
-            <v-col>
-              <app-text-field label="Name" shape="box" />
-            </v-col>
-          </v-row>
-          <v-row no-gutters align="center" class="mt-4">
-            <v-col cols="5" class="text-body-1">Priority</v-col>
-            <v-col>
-              <v-btn-toggle mandatory dense>
-                <app-button label="Low" />
-                <app-button label="Normal" />
-                <app-button label="high" />
-              </v-btn-toggle>
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
-    </v-bottom-sheet>
   </v-container>
 </template>
 
@@ -161,49 +76,148 @@ export default {
   name: "Home",
 
   components: {
+    WishlistTopBar: () => import("@/components/WishlistTopBar"),
+    WishlistItems: () => import("@/components/WishlistItems"),
+    WishlistItemsEdit: () => import("@/components/WishlistItemsEdit"),
     WishlistPageSort: () => import("@/components/WishlistPageSort"),
+    WishlistPageForm: () => import("@/components/WishlistPageForm"),
   },
 
   data() {
     return {
-      opendWishlist: null,
+      opendStack: [],
       items: [],
-      sheetPanel: {
-        open: false,
-        type: "wishlist",
-        payload: {},
-        operation: "add",
-      },
-      infoSheet: false,
-      editSheet: false,
-      addSheet: false,
+      edit: false,
+      showDetails: false,
+      loading: false,
+      sort: "alphabetical",
+      ascending: true,
     };
   },
 
   created() {
-    this.updatePageTitle("Home");
+    this.loading = true;
+
     this.fetchAllUserWishlist({
       userId: this.getAuthUser.uid,
+    }).then(() => {
+      // set user all wishlist as current showing items
+      this.items = this.all_wishlist;
+      this.loading = false;
+      this.doSort();
     });
+  },
+
+  mounted() {
+    // console.log(this.);
   },
 
   computed: {
     ...mapState("db", ["all_wishlist"]),
     ...mapGetters("auth", ["getAuthUser"]),
     ...mapGetters("db", ["getWishlistItems", "getSubitems"]),
+
+    // getters
+    getSuitableHeight() {
+      return this.$vuetify.breakpoint.height - 270;
+    },
+    depth() {
+      return this.opendStack.length;
+    },
+    currentWishlist() {
+      return this.opendStack[0];
+    },
+    currentItem() {
+      return this.opendStack[1];
+    },
+    getSortMethods() {
+      if (this.depth > 0) return ["alph", "numeric", "bool"];
+      else return ["alph", "numeric", "bool", "date"];
+    },
+    getCurrentOpendName() {
+      const item = this.opendStack[this.opendStack.length - 1];
+      return item ? item.name : undefined;
+    },
+
+    // calculations (done/undone)
+    totalDoneItems() {
+      let dones = 0;
+
+      this.items.forEach((item) => {
+        if (item.done) dones += 1;
+      });
+
+      return dones;
+    },
+    totalDoneWishlist() {
+      let done = 0;
+
+      this.all_wishlist.forEach((wishlist) => {
+        if (
+          wishlist.total_items != 0 &&
+          wishlist.total_items === wishlist.total_done
+        )
+          done += 1;
+      });
+
+      return done;
+    },
+    totalDone() {
+      if (this.depth == 0) return this.totalDoneWishlist;
+      else return this.totalDoneItems;
+    },
+    completionPercentage() {
+      if (this.depth == 0)
+        return (this.totalDoneWishlist / this.all_wishlist.length) * 100;
+      else return (this.totalDoneItems / this.items.length) * 100;
+    },
+
+    // calculations (cost)
+    totalCost() {
+      let total = 0;
+      this.items.forEach((item) => {
+        total += item.cost ? item.cost : item.total_cost;
+      });
+
+      return total;
+    },
+    totalSpent() {
+      let total = 0;
+      this.items.forEach((item) => {
+        if (item.done) total += item.cost;
+      });
+
+      return total;
+    },
+    totalRemaining() {
+      return this.computedCost(this.totalCost - this.totalSpent);
+    },
+    costStats() {
+      const stats = [
+        {
+          label: "Total Cost:",
+          icon: "cash",
+          value: this.computedCost(this.totalCost) + " SAR",
+        },
+        {
+          label: "Total Spent:",
+          icon: "cash-minus",
+          value: this.computedCost(this.totalSpent) + " SAR",
+        },
+        {
+          label: "Total Remaining:",
+          icon: "cash-check",
+          value: this.totalRemaining + " SAR",
+        },
+      ];
+
+      return stats;
+    },
   },
 
   methods: {
-    getSortMethodIcon(methodName, methodType) {
-      let icon = `sort-${methodName}`;
-      icon += "-" + methodType;
-      icon += `${methodName != "calendar" ? "-variant" : ""}`;
-      return icon;
-    },
-    changeSortMethodType() {
-      if (this.sort.selected_method <= 2) this.sort.selected_method += 1;
-      else this.sort.selected_method = 0;
-    },
+    ...mapActions("db", ["fetchAllUserWishlist", "fetchWishlistItems"]),
+
     computedCost(cost) {
       let costArray = cost.toString().split("");
       // let costLength = costArray.length;
@@ -215,68 +229,118 @@ export default {
       return costArray.join("");
     },
 
-    ...mapActions(["updatePageTitle"]),
-    ...mapActions("db", ["fetchAllUserWishlist", "fetchWishlistItems"]),
+    // sort
+    changeSortMethod(newMethod) {
+      this.sort = newMethod.name;
+      this.ascending = newMethod.ascending;
+      this.doSort();
+    },
+    doSort() {
+      let field = "name";
+      if (this.sort == "numeric")
+        field = this.depth > 0 ? "cost" : "total_cost";
+      else if (this.sort == "bool")
+        field = this.depth > 0 ? "done" : "total_cost";
 
-    open(wishlist) {
-      this.opendWishlist = wishlist;
-      this.fetchWishlistItems({
-        wishlistId: wishlist.id,
-      }).then(() => {
-        this.items = this.getWishlistItems(wishlist.id);
+      this.items.sort((first, second) => {
+        const condition = this.ascending
+          ? first[field] < second[field]
+          : first[field] > second[field];
+
+        if (condition) return -1;
+        else return 1;
       });
     },
 
-    openSheetPanel(
-      type /* wishlist or item */,
-      payload = {},
-      operation = "add" /* add, edit, or delete */
-    ) {
-      this.sheetPanel.open = true;
-      this.sheetPanel.type = type;
+    // items methods
+    open(item) {
+      if (this.depth >= 0 && this.depth <= 1) this.opendStack.push(item);
+      else return;
 
-      this.sheetPanel.payload = {
-        uid: this.getAuthUser.uid,
-        wishlist: this.opendWishlist ? this.opendWishlist.id : undefined,
-        parentItem: payload.parentItem,
-        ...payload,
+      if (this.depth == 1) {
+        this.loading = true;
+
+        this.fetchWishlistItems({
+          wishlistId: this.currentWishlist.id,
+        }).then(() => {
+          this.items = this.getWishlistItems(this.currentWishlist.id);
+          this.loading = false;
+        });
+      } else if (this.depth == 2) {
+        this.items = this.getSubitems(this.currentItem.id);
+      }
+    },
+    close() {
+      this.opendStack.pop();
+
+      if (this.depth == 1)
+        this.items = this.getWishlistItems(this.currentWishlist.id);
+      else if (this.depth == 0) this.items = this.all_wishlist;
+    },
+
+    operation(type, payload) {
+      this.loading = true;
+
+      const obj = {
+        wishlistId: this.depth > 0 ? this.currentWishlist.id : undefined,
+        parentWishlist: this.depth > 0 ? this.currentWishlist.id : undefined,
+        parentItem: this.depth > 1 ? this.currentItem.id : undefined,
+        id: payload.id, // if delete
+        name: payload.name,
+        priority: "normal",
+        cost: payload.cost, // if item
+        done: payload.done, // if item
+        due_date: "", // if wishlist
+        userId: this.getAuthUser.uid,
       };
 
-      this.sheetPanel.operation = operation;
-    },
+      let operationName;
+      switch (type) {
+        case "add":
+          operationName = this.depth > 0 ? "addNewItem" : "addNewWishlist";
+          break;
+        case "update":
+          operationName = this.depth > 0 ? "updateItem" : "updateWishlist";
+          break;
+        case "delete":
+          operationName = this.depth > 0 ? "deleteItem" : "deleteWishlist";
+          break;
+        case "change_status":
+          operationName = "changeItemStatus";
+          break;
+      }
 
-    closeSheetPanel() {
-      this.sheetPanel.open = false;
-      this.sheetPanel.payload = {};
-      this.sheetPanel.type = "wishlist";
-      this.sheetPanel.operation = "add";
-    },
-
-    changeStatus(item) {
-      this.$store.dispatch("db/changeItemStatus", {
-        parentWishlist: this.opendWishlist.id,
-        item,
-      });
-    },
-    addSubitem(payload) {
-      this.openSheetPanel("item", payload, "add");
-      console.log(payload);
-    },
-    editSubitem(payload) {
-      this.openSheetPanel("item", payload, "edit");
-    },
-    deleteSubitem(payload) {
-      this.openSheetPanel("item", payload, "delete");
-    },
-    changeSubitemStatus(payload) {
-      this.$store.dispatch("db/changeItemStatus", {
-        parentWishlist: this.opendWishlist.id,
-        parentItem: payload.parentItem,
-        item: {
-          ...payload,
-        },
-      });
+      this.$store
+        .dispatch(`db/${operationName}`, obj)
+        .then(() => (this.loading = false));
     },
   },
 };
 </script>
+
+<style lang="scss">
+#home {
+  .v-toolbar__content {
+    padding: 4px 0px;
+  }
+  .v-input {
+    font-size: inherit;
+    .v-label {
+      font-size: inherit;
+    }
+  }
+  .fixed-height-container {
+    overflow: auto;
+  }
+  .center-floating-button {
+    position: relative;
+    display: flex;
+    justify-content: center;
+
+    > .v-btn {
+      position: absolute;
+      top: -13px;
+    }
+  }
+}
+</style>
