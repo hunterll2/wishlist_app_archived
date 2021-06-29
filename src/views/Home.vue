@@ -1,15 +1,29 @@
 <template>
-  <v-container id="home">
-    <wishlist-top-bar
-      :back-button="!edit ? getCurrentOpendName : undefined"
-      @back="close()"
-      @edit="edit = true"
-      @view="edit = false"
-    />
+  <v-container id="home" class="pa-0">
+    <v-app-bar
+      dense
+      hide-on-scroll
+      elevate-on-scroll
+      app
+      color="white"
+      class="text-body-2"
+    >
+      <v-toolbar-title v-if="getCurrentOpendName && !edit" @click="close()">
+        <v-icon left> mdi-arrow-left-thin-circle-outline </v-icon>
+        {{ getCurrentOpendName }}
+      </v-toolbar-title>
 
-    <v-card :loading="loading">
-      <!-- Header -->
-      <v-card-title class="pa-2 text-body-1">
+      <v-spacer />
+
+      <app-button
+        v-if="!edit"
+        label="Edit"
+        color="primary"
+        @click="edit = true"
+      />
+      <app-button v-else label="Done" color="success" @click="edit = false" />
+
+      <template #extension>
         <template v-if="!edit">
           <app-progress-circle
             :percentage="completionPercentage"
@@ -27,29 +41,45 @@
           :type="depth > 0 ? 'item' : 'wishlist'"
           @add-item="operation('add', $event)"
         />
-      </v-card-title>
-      <v-divider />
+      </template>
+    </v-app-bar>
 
-      <!-- Content -->
-      <v-card-text
-        class="pa-0 fixed-height-container"
-        :style="{ 'max-height': getSuitableHeight + 'px' }"
-      >
-        <wishlist-items
-          v-if="!edit"
-          :items="items"
-          @open-item="open"
-          @change-status="operation('change_status', $event)"
-        />
-        <wishlist-items-edit
-          v-else
-          :items="items"
-          @update-item="operation('update', $event)"
-          @delete-item="operation('delete', $event)"
-        />
-      </v-card-text>
+    <v-progress-linear v-if="loading" indeterminate fixed />
 
-      <!-- Bottom -->
+    <wishlist-items
+      v-if="!edit"
+      :items="items"
+      @open-item="open"
+      @change-status="operation('change_status', $event)"
+    />
+    <wishlist-items-edit
+      v-else
+      :items="items"
+      @update-item="operation('update', $event)"
+      @delete-item="operation('delete', $event)"
+    />
+
+    <div v-if="!edit" class="center-floating-button">
+      <app-button
+        :icon="`arrow-up-drop-circle-outline`"
+        type="button-icon"
+        icon-size="small"
+        color="white"
+        @click="showDetails = true"
+      />
+    </div>
+
+    <v-bottom-sheet v-model="showDetails">
+      <v-card tile>
+        <v-card-title></v-card-title>
+        <v-card-text class="text-caption">
+          <app-simple-table :items="costStats" />
+        </v-card-text>
+      </v-card>
+    </v-bottom-sheet>
+
+    <!-- <v-card :loading="loading">
+      <v-card-text class="pa-0"></v-card-text>
       <div v-if="!edit" class="center-floating-button">
         <app-button
           :icon="`arrow-${showDetails ? 'down' : 'up'}-drop-circle-outline`"
@@ -65,7 +95,7 @@
       <v-card-actions v-if="showDetails" class="text-caption d-block">
         <app-simple-table :items="costStats" />
       </v-card-actions>
-    </v-card>
+    </v-card> -->
   </v-container>
 </template>
 
@@ -76,7 +106,7 @@ export default {
   name: "Home",
 
   components: {
-    WishlistTopBar: () => import("@/components/WishlistTopBar"),
+    // WishlistTopBar: () => import("@/components/WishlistTopBar"),
     WishlistItems: () => import("@/components/WishlistItems"),
     WishlistItemsEdit: () => import("@/components/WishlistItemsEdit"),
     WishlistPageSort: () => import("@/components/WishlistPageSort"),
@@ -119,7 +149,7 @@ export default {
 
     // getters
     getSuitableHeight() {
-      return this.$vuetify.breakpoint.height - 270;
+      return this.$vuetify.breakpoint.height;
     },
     depth() {
       return this.opendStack.length;
@@ -320,27 +350,24 @@ export default {
 
 <style lang="scss">
 #home {
-  .v-toolbar__content {
-    padding: 4px 0px;
-  }
   .v-input {
     font-size: inherit;
+
     .v-label {
       font-size: inherit;
     }
   }
+
   .fixed-height-container {
     overflow: auto;
   }
+
   .center-floating-button {
-    position: relative;
+    position: fixed;
+    bottom: 70px;
+    width: 100%;
     display: flex;
     justify-content: center;
-
-    > .v-btn {
-      position: absolute;
-      top: -13px;
-    }
   }
 }
 </style>

@@ -5,6 +5,7 @@
       :size="size"
       :width="width"
       :color="color"
+      buffer-value="0"
     />
     <div class="text--secondary ml-2">
       {{ label }}
@@ -25,7 +26,7 @@ export default {
     },
     size: {
       type: Number,
-      default: 22,
+      default: 21,
     },
     width: {
       type: Number,
