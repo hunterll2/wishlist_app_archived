@@ -1,124 +1,57 @@
 <template>
   <v-container>
-    <saving-stats />
+    <v-expand-transition>
+      <saving-stats v-if="mode.stats" />
+    </v-expand-transition>
 
-    <v-row class="pt-6">
-      <v-col class="text-h6">Incomes</v-col>
-    </v-row>
+    <div class="center-floating-button">
+      <app-button
+        :icon="`arrow-${mode.stats ? 'down' : 'up'}-drop-circle-outline`"
+        type="button-icon"
+        icon-size="small"
+        color="white"
+        @click="changeMode"
+      />
+    </div>
 
-    <v-row no-gutters>
-      <v-col>
-        <saving-view-items
-          :items="savingData.incomes"
-          @done="saveChanges('incomes', $event)"
-        />
-      </v-col>
-    </v-row>
-
-    <v-row>
-      <v-col class="text-h6">Expenses</v-col>
-    </v-row>
-
-    <v-row no-gutters>
-      <v-col>
-        <saving-view-items
-          :items="savingData.expenses"
-          @done="saveChanges('expenses', $event)"
-        />
-      </v-col>
-    </v-row>
-
-    <v-row>
-      <v-col class="text-h6">Personal Saving</v-col>
-    </v-row>
-
-    <v-row>
-      <v-col>
-        <app-text-field
-          v-model="savingData.personal_saving"
-          label="Personal Saving"
-          type="number"
-          shape="box"
-          :stepper="true"
-          :non-negative="true"
-          @increase="increasePersonalSaving"
-          @decrease="decreasePersonalSaving"
-          @change="updatePersonalSaving"
-        />
-      </v-col>
-    </v-row>
+    <v-expand-transition>
+      <saving-data v-if="mode.data" />
+    </v-expand-transition>
   </v-container>
 </template>
 
 <script>
-import { mapGetters } from "vuex";
-
 export default {
   components: {
     SavingStats: () => import("./SavingStats.vue"),
-    SavingViewItems: () => import("./SavingViewItems.vue"),
+    SavingData: () => import("./SavingData.vue"),
   },
   data() {
     return {
-      savingData: {},
-      personalSaving: 0,
+      mode: {
+        stats: true,
+        data: false,
+      },
     };
   },
-  computed: mapGetters("user", ["getUserSavingData"]),
-  created() {
-    this.savingData = this.getUserSavingData;
-  },
+  created() {},
+  computed: {},
   methods: {
-    updatePersonalSaving() {
-      this.$store.dispatch("user/updatePersonalSaving", {
-        newAmount: this.savingData.personal_saving,
-      });
-    },
-    increasePersonalSaving() {
-      this.savingData.personal_saving += 100;
-    },
-    decreasePersonalSaving() {
-      if (this.savingData.personal_saving >= 0)
-        this.savingData.personal_saving -= 100;
-    },
-    saveChanges(type, payload) {
-      const promises = [];
-
-      payload.itemsToAdded.forEach((item) => {
-        promises.push(
-          this.$store.dispatch("user/addSavingDataItem", {
-            type,
-            id: item.id,
-            name: item.name,
-            amount: item.amount,
-          })
-        );
-      });
-
-      payload.itemsToUpdate.forEach((item) => {
-        promises.push(
-          this.$store.dispatch("user/updateSavingDataItem", {
-            type,
-            id: item.id,
-            name: item.name,
-            amount: item.amount,
-          })
-        );
-      });
-
-      payload.itemsToDelete.forEach((item) => {
-        promises.push(
-          this.$store.dispatch("user/deleteSavingDataItem", {
-            type,
-            id: item.id,
-          })
-        );
-      });
-
-      Promise.all(promises).then(() => {
-        this.$bus.$emit("saving-saving_changes_done");
-      });
+    changeMode() {
+      this.mode.stats = !this.mode.stats;
+      this.mode.data = !this.mode.data;
     },
   },
 };
 </script>
+
+<style lang="scss">
+.center-floating-button {
+  position: fixed;
+  bottom: 70px;
+  left: 0px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+</style>

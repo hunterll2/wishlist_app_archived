@@ -1,8 +1,8 @@
 <template>
   <v-form v-model="valid" @submit.prevent="register">
     <v-container>
-      <v-row>
-        <v-col cols="12">
+      <v-row class="flex-column">
+        <v-col>
           <v-text-field
             v-model="email"
             :rules="emailRules"
@@ -12,8 +12,7 @@
             @focus="error = null"
           />
         </v-col>
-
-        <v-col cols="12">
+        <v-col>
           <v-text-field
             v-model="password"
             :rules="passwordRules"

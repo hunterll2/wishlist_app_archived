@@ -21,10 +21,10 @@
       </v-row>
       <v-row>
         <v-col>
-          <v-alert type="error" dense>
+          <v-alert v-if="error" type="error" dense>
             The provided email isn't registerd.
           </v-alert>
-          <v-alert type="info" dense>
+          <v-alert v-if="info" type="info" dense>
             Check your email for the reset password code.
           </v-alert>
         </v-col>
@@ -39,6 +39,8 @@ export default {
     return {
       valid: false,
       email: "",
+      error: null,
+      info: null,
     };
   },
   methods: {

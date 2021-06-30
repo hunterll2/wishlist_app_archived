@@ -15,6 +15,7 @@
     @keydown.enter="$emit('done')"
     :step="step"
     :min="nonNegative ? 0 : undefined"
+    :disabled="disabled"
   >
     <template v-if="stepper" #append>
       <div class="d-flex flex-column">
@@ -63,6 +64,7 @@ export default {
     },
     dense: Boolean,
     tile: Boolean,
+    disabled: Boolean,
   },
 };
 </script>

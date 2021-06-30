@@ -1,13 +1,13 @@
 <template>
   <v-container>
-    <v-row v-if="loading" justify="center">
-      <v-col cols="2">
-        <v-fade-transition>
-          <v-progress-circular indeterminate />
-        </v-fade-transition>
-      </v-col>
-    </v-row>
-    <v-fade-transition v-else>
+    <v-fade-transition>
+      <v-progress-circular
+        v-if="loading"
+        class="center-floating"
+        indeterminate
+      />
+    </v-fade-transition>
+    <v-fade-transition v-if="!loading">
       <component :is="curComponent" @go="startEnterData = true" />
     </v-fade-transition>
   </v-container>
@@ -40,16 +40,22 @@ export default {
   },
   methods: {},
   created() {
-    this.$store.dispatch("updatePageTitle", "Saving");
     this.loading = true;
     this.$store
       .dispatch("user/fetchUserSavingData", this.getAuthUser.uid)
-      .then((areTheUserHaveSavingData) => {
-        this.firstTime = !areTheUserHaveSavingData;
+      .then((areTheUserHasSavingData) => {
+        this.firstTime = !areTheUserHasSavingData;
         this.loading = false;
       });
   },
 };
 </script>
 
-<style></style>
+<style>
+.center-floating {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+</style>

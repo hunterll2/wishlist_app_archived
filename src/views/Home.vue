@@ -77,25 +77,6 @@
         </v-card-text>
       </v-card>
     </v-bottom-sheet>
-
-    <!-- <v-card :loading="loading">
-      <v-card-text class="pa-0"></v-card-text>
-      <div v-if="!edit" class="center-floating-button">
-        <app-button
-          :icon="`arrow-${showDetails ? 'down' : 'up'}-drop-circle-outline`"
-          type="button-icon"
-          icon-size="small"
-          color="white"
-          @click="showDetails = !showDetails"
-        />
-      </div>
-
-      <v-divider />
-
-      <v-card-actions v-if="showDetails" class="text-caption d-block">
-        <app-simple-table :items="costStats" />
-      </v-card-actions>
-    </v-card> -->
   </v-container>
 </template>
 
@@ -106,7 +87,6 @@ export default {
   name: "Home",
 
   components: {
-    // WishlistTopBar: () => import("@/components/WishlistTopBar"),
     WishlistItems: () => import("@/components/WishlistItems"),
     WishlistItemsEdit: () => import("@/components/WishlistItemsEdit"),
     WishlistPageSort: () => import("@/components/WishlistPageSort"),
@@ -356,10 +336,6 @@ export default {
     .v-label {
       font-size: inherit;
     }
-  }
-
-  .fixed-height-container {
-    overflow: auto;
   }
 
   .center-floating-button {

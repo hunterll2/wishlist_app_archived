@@ -4,7 +4,7 @@
       <router-view />
     </v-main>
 
-    <v-bottom-navigation app grow shift>
+    <v-bottom-navigation v-if="getAuthUser" app grow shift>
       <v-btn exact :to="{ name: 'Home' }">
         <span>Home</span>
         <v-icon>mdi-home</v-icon>
@@ -29,11 +29,10 @@
 </template>
 
 <script>
-import { mapState } from "vuex";
-
+import { mapGetters } from "vuex";
 export default {
   name: "App",
-  computed: mapState(["page_title"]),
+  computed: mapGetters("auth", ["getAuthUser"]),
 };
 </script>
 

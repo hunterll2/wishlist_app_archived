@@ -1,5 +1,5 @@
 <template>
-  <v-simple-table>
+  <v-simple-table dense>
     <template #default>
       <thead>
         <tr>

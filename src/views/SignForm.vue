@@ -2,35 +2,38 @@
   <v-container>
     <v-row justify="center" class="mt-3">
       <v-col cols="auto">
-        <v-btn-toggle v-model="mode" color="primary" tile>
-          <v-btn value="login" text>
-            <v-icon left>mdi-login</v-icon>
-            Log In
-          </v-btn>
-          <v-btn value="register" text>
-            <v-icon left>mdi-account-plus-outline</v-icon>
-            Register
-          </v-btn>
+        <v-btn-toggle v-model="mode" color="primary" dense>
+          <app-button value="login" label="Login" icon="login" size="large" />
+          <app-button
+            value="register"
+            label="Register"
+            icon="account-plus-outline"
+            size="large"
+          />
         </v-btn-toggle>
       </v-col>
     </v-row>
 
     <v-row>
       <v-col>
-        <sign-form-login v-if="mode === 'login'" :provided-email="email" />
+        <sign-form-login v-if="mode == 'login'" :provided-email="email" />
         <sign-form-register
-          v-if="mode === 'register'"
+          v-if="mode == 'register'"
           @registered="registered"
         />
-        <sign-form-reset-password v-if="mode === 'reset'" />
+        <sign-form-reset-password v-if="mode == 'reset'" />
       </v-col>
     </v-row>
 
     <v-row>
       <v-col>
-        <v-btn v-if="mode === 'login'" text small @click="mode = 'reset'">
-          Reset password
-        </v-btn>
+        <app-button
+          v-if="mode == 'login'"
+          label="Reset password"
+          icon="account-lock"
+          size="large"
+          @click="mode = 'reset'"
+        />
       </v-col>
     </v-row>
   </v-container>

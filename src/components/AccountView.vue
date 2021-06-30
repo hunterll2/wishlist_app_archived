@@ -1,26 +1,21 @@
 <template>
   <v-container>
-    <v-row>
+    <v-row align="center" class="text-body-1">
       <v-col>
-        <v-text-field :value="user.email" disabled required />
+        <v-text-field :value="user.email" disabled hide-details dense />
       </v-col>
     </v-row>
 
     <v-row>
-      <v-col>
-        <v-btn color="error" @click="$emit('log-out')">Log out</v-btn>
-      </v-col>
-      <v-col>
-        <v-btn color="primary" @click="$emit('change-password')">
-          Change Password
-        </v-btn>
-      </v-col>
+      <app-button label="Log out" @click="$emit('log-out')" />
+      <app-button label="Change Password" @click="$emit('change-password')" />
     </v-row>
   </v-container>
 </template>
 
 <script>
 export default {
+  name: "SignForm",
   props: {
     user: {
       type: Object,

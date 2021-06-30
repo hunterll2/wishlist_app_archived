@@ -1,5 +1,6 @@
 <template>
   <v-btn
+    :value="value"
     :block="!!block"
     :text="type == 'text'"
     :tile="type == 'tile'"
@@ -45,6 +46,7 @@ export default {
       default: "text",
     },
     block: Boolean,
+    value: String,
   },
 };
 </script>
