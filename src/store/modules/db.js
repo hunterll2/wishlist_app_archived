@@ -1,4 +1,5 @@
-import Vue from "vue";
+import _ from "lodash/lang";
+const uniqid = require("uniqid");
 
 import {
   FetchDocs,
@@ -8,330 +9,301 @@ import {
   DeleteDoc,
 } from "@/helpers/firebaseHelpers";
 
+// helpers
+const path = (wishlist, item) => {
+  let path = "wishlist";
+  if (wishlist) path += `/${wishlist}/items`;
+  if (item) path += `/${item}/items`;
+  return path;
+};
+
+// Item Class
+class Item {
+  items = [];
+
+  constructor(id, name, { cost, done, priority, due_date }) {
+    this.id = id;
+    this.name = name;
+
+    // wishlist
+    this.due_date = due_date;
+
+    // wishlist & item
+    this.priority = priority;
+
+    // item & subitem
+    this.cost = cost;
+    this.done = done;
+  }
+
+  // Setters & Getters
+  // item's done status or item's progress based on total childs done / length
+  set done(val) {
+    this._done = !isNaN(val) && val >= 0 && val <= 100 ? val : 0;
+  }
+
+  get done() {
+    return this.total_items > 0
+      ? Math.round(this.total_progress / this.total_items)
+      : this._done;
+  }
+
+  // item's cost or item's total childs costs
+  set cost(val) {
+    this._cost = !isNaN(val) && val >= 0 ? val : 0;
+  }
+
+  get cost() {
+    return this.total_items > 0 ? this.total_cost : this._cost;
+  }
+
+  // Stringfy
+  get getCostString() {
+    return this.cost + " SAR";
+  }
+
+  get getProgressString() {
+    return `${this.total_done} of ${this.total_items}`;
+  }
+
+  // calcaulated proprties
+  get total_items() {
+    return this.items.length;
+  }
+
+  get total_done() {
+    return this.items.filter((item) => item.done == 100).length;
+  }
+
+  get total_cost() {
+    return this.items.reduce((prev, cur) => prev + cur.cost, 0);
+  }
+
+  get total_progress() {
+    return this.items.reduce((prev, cur) => prev + cur.done, 0);
+  }
+
+  get total_spent() {
+    if (this.total_items)
+      return this.items.reduce((prev, cur) => prev + cur.total_spent, 0);
+    else return this.done == 100 ? this.cost : 0;
+  }
+
+  get remaining() {
+    return this.total_cost - this.total_spent;
+  }
+
+  // Methods
+  addItem(item) {
+    this.items.push(item);
+  }
+  getItem(id) {
+    return this.items.find((item) => item.id == id);
+  }
+  updateItem(id, data) {
+    const item = this.items.find((item) => item.id == id);
+    item.name = data.name ? data.name : item.name;
+    item.cost = data.cost ? data.cost : item.cost;
+    item.done = data.done ? data.done : item.done;
+  }
+  removeItem(id) {
+    const itemIndex = this.items.findIndex((item) => item.id == id);
+    this.items.splice(itemIndex, 1);
+  }
+
+  //
+  getValues() {
+    return {
+      id: this.id,
+      name: this.name,
+      cost: this.cost,
+      done: this.done,
+    };
+  }
+}
+
 export default {
   namespaced: true,
 
   state: {
-    all_wishlist: [],
-    /*
-    [
-      {
-       id,
-       name,
-       total_cost,
-       total_items,
-       total_done,
-       due_date,
-       priority,
-       user
-      }
-    ]
-    */
-    wishlistItems: [],
-    /*
-    [
-      {
-        wishlist: wishlistId,
-        items: [
-          {
-            id,
-            name,
-            cost,
-            done,
-            priority,
-          }
-        ]
-      }
-    ]
-    */
-    subitems: [],
-    /*
-    [
-      {
-        item: parentItemId,
-        subitems: [
-          {
-            name,
-            cost,
-            done,
-            priority,
-          }
-        ]
-      }
-    ]
-    */
+    user_wishlists: null,
+    changes: [],
   },
 
   getters: {
-    getWishlistItems: (state) => (wishlistId) =>
-      state.wishlistItems.find((obj) => obj.wishlist === wishlistId).items,
-    getSubitems: (state) => (itemId) => {
-      const obj = state.subitems.find((obj) => obj.item === itemId);
-      return obj ? obj.subitems : undefined;
+    getItem: (state) => (path, itemId) => {
+      const [wishlistId, parentId] = path.split("/");
+
+      let target = state.user_wishlists.items;
+      if (wishlistId != "undefined")
+        target = target.find((wishlist) => wishlist.id == wishlistId).items;
+      if (parentId != "undefined")
+        target = target.find((item) => item.id == parentId).items;
+
+      return target.find((item) => item.id == itemId);
     },
+    getChangesLog: (state) => state.changes,
   },
 
   mutations: {
-    SET_USER_WISHLIST_ARRAY(state, wishlistArray) {
-      state.all_wishlist = wishlistArray;
-    },
-    SAVE_WISHLIST_ITEMS(state, { wishlistId, items }) {
-      state.wishlistItems.push({ wishlist: wishlistId, items });
-    },
-    SAVE_SUBITEMS(state, { itemId, subitems }) {
-      state.subitems.push({ item: itemId, subitems });
+    SET_USER_WISHLISTS_OBJECT(state, item) {
+      state.user_wishlists = item;
     },
 
-    // Add, Edit, Delete
-    Add_NEW_WISHLIST_INTO_STATE(state, newWishlistObj) {
-      state.all_wishlist.push(newWishlistObj);
-    },
-    UPDATE_WISHLIST(state, wishlistObj) {
-      const wishlist = state.all_wishlist.find(
-        (wishlist) => wishlist.id === wishlistObj.id
-      );
+    ADD(state, { wishlistId, parentId, item }) {
+      if (!(item instanceof Item)) return;
 
-      wishlist.name = wishlistObj.name;
-      wishlist.priority = wishlistObj.priority;
-      wishlist.due_date = wishlistObj.due_date;
-    },
-    REMOVE_WISHLIST_FROM_STATE(state, id) {
-      const wishlistIndex = state.all_wishlist.findIndex(
-        (wishlist) => wishlist.id === id
-      );
-      Vue.delete(state.all_wishlist, wishlistIndex);
+      // target parent item
+      let target = state.user_wishlists;
+      if (wishlistId) target = target.getItem(wishlistId);
+      if (parentId) target = target.getItem(parentId);
+
+      // operation
+      target.addItem(item);
     },
 
-    // Add, Edit, Delete item from state
-    Add_NEW_ITEM_INTO_STATE(state, { wishlistId, parentId, newItemObj }) {
-      const wishlist = state.wishlistItems.find(
-        (obj) => obj.wishlist === wishlistId
-      );
-      if (parentId) {
-        const parentItem = state.subitems.find((obj) => obj.item === parentId);
-        parentItem.subitems.push(newItemObj);
-      } else {
-        wishlist.items.push(newItemObj);
-      }
-    },
-    UPDATE_ITEM(state, { wishlistId, parentId, itemObj }) {
-      // find item parent wishlist
-      const wishlist = state.wishlistItems.find(
-        (obj) => obj.wishlist === wishlistId
-      );
+    UPDATE(state, { wishlistId, parentId, item }) {
+      // target parent item
+      let target = state.user_wishlists;
+      if (wishlistId) target = target.getItem(wishlistId);
+      if (parentId) target = target.getItem(parentId);
 
-      // find item object
-      let item;
-      if (parentId) {
-        const parentItem = state.subitems.find((obj) => obj.item === parentId);
-        item = parentItem.subitems.find((obj) => obj.id === itemObj.id);
-      } else {
-        item = wishlist.items.find((obj) => obj.id === itemObj.id);
-      }
-
-      item.name = itemObj.name;
-      item.cost = itemObj.cost;
-      item.priority = itemObj.priority;
-    },
-    REMOVE_ITEM_FROM_STATE(state, { wishlistId, parentId, id }) {
-      // find item parent wishlist
-      const wishlist = state.wishlistItems.find(
-        (obj) => obj.wishlist === wishlistId
-      );
-
-      // find item index
-      let itemIndex;
-      if (parentId) {
-        const parentItem = state.subitems.find((obj) => obj.item === parentId);
-        itemIndex = parentItem.subitems.findIndex((obj) => obj.id === id);
-        Vue.delete(parentItem.subitems, itemIndex);
-      } else {
-        itemIndex = wishlist.items.findIndex((obj) => obj.id === id);
-        Vue.delete(wishlist.items, itemIndex);
-      }
+      // operation
+      target.updateItem(item.id, item);
     },
 
-    CHANGE_ITEM_STATUS(state, { parentWishlist, parentItem, id, done }) {
-      let targetParent, targetItem;
+    REMOVE(state, { wishlistId, parentId, itemId }) {
+      // target parent item
+      let target = state.user_wishlists;
+      if (wishlistId) target = target.getItem(wishlistId);
+      if (parentId) target = target.getItem(parentId);
 
-      if (parentItem) {
-        targetParent = state.subitems.find((obj) => obj.item === parentItem);
-        targetItem = targetParent.subitems.find((obj) => obj.id === id);
-        targetItem.done = done;
-      } else {
-        targetParent = state.wishlistItems.find(
-          (obj) => obj.wishlist === parentWishlist
-        );
-        targetItem = targetParent.items.find((obj) => obj.id === id);
-        targetItem.done = done;
-      }
+      // operation
+      target.removeItem(itemId);
+    },
+
+    CHANGE_ITEM_STATUS(state, { wishlistId, parentId, itemId, done }) {
+      let item = state.user_wishlists.getItem(wishlistId);
+      if (parentId) item = item.getItem(parentId);
+      item = item.getItem(itemId);
+      item.done = done;
     },
   },
 
   actions: {
-    async fetchAllUserWishlist({ state, commit }, { userId }) {
-      // check if wishlist is already fetched or not
-      if (state.all_wishlist.length > 0) return;
-
-      //
-      const userWishlistArray = await FetchSetOfDocs(
-        "wishlist",
-        `user == ${userId}`
-      );
-
-      commit("SET_USER_WISHLIST_ARRAY", userWishlistArray);
+    initUserWishlistsObject({ commit }, { userId }) {
+      return new Promise((resolve) => {
+        commit("SET_USER_WISHLISTS_OBJECT", new Item(userId, "User Wishlists"));
+        resolve(null);
+      });
     },
 
-    async fetchWishlistItems({ state, commit }, { wishlistId }) {
-      // 0. check if wishlist's items already fetched
-      const wishlist = state.wishlistItems.find(
-        (obj) => obj.wishlist == wishlistId
-      );
+    async init({ commit, state }, { userId }) {
+      let arry;
 
-      if (wishlist) return wishlist;
+      // level 1 - wishlists
+      arry = await FetchSetOfDocs("wishlist", `user == ${userId}`);
 
-      // 1. fetch wishlist's items
-      const wishlistItems = await FetchDocs(`wishlist/${wishlistId}/items`);
-
-      // 2. for each wishlist's item check if it's has a subitems, if so, go fetch it
-      for (const item of wishlistItems) {
-        let subitems = await FetchDocs(
-          `wishlist/${wishlistId}/items/${item.id}/items`
-        );
-
-        // if the item dons't have subitems, add emptiy array for future use
-        if (!subitems.length) subitems = [];
-
-        commit("SAVE_SUBITEMS", { itemId: item.id, subitems });
+      for (const wishlist of arry) {
+        commit("ADD", {
+          item: new Item(wishlist.id, wishlist.name, {
+            priority: wishlist.priority,
+            due_date: wishlist.due_date,
+          }),
+        });
       }
 
-      // 3. save fetched items locally
-      commit("SAVE_WISHLIST_ITEMS", { wishlistId, items: wishlistItems });
+      // level 2 - items
+      for (const wishlist of state.user_wishlists.items) {
+        arry = await FetchDocs(path(wishlist.id));
 
-      return wishlistItems;
-    },
-
-    // Add, Edit, Delete
-    addNewWishlist({ commit }, { name, priority, due_date, userId }) {
-      const newWishlistObj = {
-        name,
-        priority,
-        due_date,
-        total_cost: 0,
-        total_items: 0,
-        total_done: 0,
-        user: userId,
-      };
-
-      return AddDoc("wishlist", newWishlistObj).then((wishlist) => {
-        // update localy
-        commit("Add_NEW_WISHLIST_INTO_STATE", {
-          id: wishlist.id,
-          ...newWishlistObj,
+        commit("ADD_LIST", {
+          wishlistId: wishlist.id,
+          items: arry,
         });
-      });
-    },
-    async updateWishlist({ commit }, { id, name, priority, due_date }) {
-      const wishlistObj = {
-        name,
-        priority,
-        due_date,
-      };
 
-      await UpdateDoc("wishlist", id, wishlistObj);
+        // level 3 - subitems
+        for (const item of wishlist.items) {
+          arry = await FetchDocs(path(wishlist.id, item.id));
 
-      // update localy
-      commit("UPDATE_WISHLIST", {
-        id,
-        ...wishlistObj,
-      });
-    },
-    deleteWishlist({ commit }, { id }) {
-      return DeleteDoc("wishlist", id).then(() => {
-        commit("REMOVE_WISHLIST_FROM_STATE", id);
-      });
+          if (arry.length == 0) continue;
+
+          commit("ADD_LIST", {
+            wishlistId: wishlist.id,
+            parentId: item.id,
+            items: arry,
+          });
+        }
+      }
     },
 
-    // Add, Edit, Delete item
-    addNewItem({ commit }, { name, cost, priority, wishlistId, parentId }) {
-      const newItemObj = {
-        name,
-        cost: Number(cost),
-        priority,
-        done: false,
-      };
+    async operation(
+      { getters, commit, dispatch },
+      { type, wishlistId, parentId, itemId, item }
+    ) {
+      if (type == "change_status") {
+        let newStatus = item.done == 0 ? 100 : 0;
 
-      const path = () =>
-        parentId
-          ? `wishlist/${wishlistId}/items/${parentId}/items`
-          : `wishlist/${wishlistId}/items`;
-
-      return AddDoc(path(), newItemObj).then((newItem) => {
-        // update localy
-        commit("Add_NEW_ITEM_INTO_STATE", {
+        commit("CHANGE_ITEM_STATUS", {
           wishlistId,
           parentId,
-          newItemObj: {
-            id: newItem.id,
-            ...newItemObj,
-          },
+          itemId,
+          done: newStatus,
         });
-        // for newly added items, save it also in subitems array
-        commit("SAVE_SUBITEMS", { itemId: newItem.id, subitems: [] });
-      });
-    },
-    updateItem({ commit }, { id, name, cost, priority, wishlistId, parentId }) {
-      const itemObj = {
-        name,
-        cost: Number(cost),
-        priority,
-      };
+      } else if (type == "add") {
+        let newDoc = { ...item };
 
-      const path = () =>
-        parentId
-          ? `wishlist/${wishlistId}/items/${parentId}/items`
-          : `wishlist/${wishlistId}/items`;
+        if (wishlistId) {
+          delete newDoc.due_date;
+          delete newDoc.user;
+        } else {
+          delete newDoc.cost;
+          delete newDoc.done;
+        }
 
-      return UpdateDoc(path(), id, itemObj).then(() => {
-        // update localy
-        commit("UPDATE_ITEM", {
+        if (parentId) {
+          delete newDoc.priority;
+        }
+
+        let newId = uniqid();
+
+        commit("ADD", {
           wishlistId,
           parentId,
-          itemObj: {
-            id,
-            ...itemObj,
+          item: {
+            id: newId,
+            ...newDoc,
           },
         });
-      });
-    },
-    deleteItem({ commit }, { id, wishlistId, parentId }) {
-      const path = () =>
-        parentId
-          ? `wishlist/${wishlistId}/items/${parentId}/items`
-          : `wishlist/${wishlistId}/items`;
+      } else if (type == "update") {
+        let updateDoc = {
+          name: item.name,
+          cost: item.cost,
+          priority: item.priority,
+          due_date: item.due_date,
+        };
 
-      return DeleteDoc(path(), id)
-        .then(() => {
-          commit("REMOVE_ITEM_FROM_STATE", { wishlistId, parentId, id });
-        })
-        .catch((e) => console.log(e));
-    },
-    changeItemStatus({ commit }, { parentWishlist, parentItem, id, done }) {
-      const path = () =>
-        parentItem
-          ? `wishlist/${parentWishlist}/items/${parentItem}/items`
-          : `wishlist/${parentWishlist}/items`;
+        if (wishlistId) {
+          delete updateDoc.due_date;
+        } else {
+          delete updateDoc.cost;
+        }
 
-      UpdateDoc(path(), id, {
-        done: !done,
-      });
-
-      commit("CHANGE_ITEM_STATUS", {
-        parentWishlist,
-        parentItem,
-        id,
-        done: !done,
-      });
+        commit("UPDATE", {
+          wishlistId,
+          parentId,
+          item: {
+            id: itemId,
+            ...updateDoc,
+          },
+        });
+      } else if (type == "delete") {
+        commit("REMOVE", {
+          wishlistId,
+          parentId,
+          itemId,
+        });
+      }
     },
   },
 };

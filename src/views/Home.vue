@@ -8,8 +8,10 @@
       color="white"
       class="text-body-2"
     >
-      <v-toolbar-title v-if="getCurrentOpendName && !edit" @click="close()">
-        <v-icon left> mdi-arrow-left-thin-circle-outline </v-icon>
+      <v-toolbar-title @click="close()">
+        <v-icon left v-if="depth > 1 && !edit">
+          mdi-arrow-left-thin-circle-outline
+        </v-icon>
         {{ getCurrentOpendName }}
       </v-toolbar-title>
 
@@ -21,13 +23,13 @@
         color="primary"
         @click="edit = true"
       />
-      <app-button v-else label="Done" color="success" @click="edit = false" />
+      <app-button v-else label="Done" color="success" @click="done" />
 
       <template #extension>
         <template v-if="!edit">
           <app-progress-circle
-            :percentage="completionPercentage"
-            :label="`${totalDone} of ${items.length} done`"
+            :percentage="getCurrentOpendProgress"
+            :label="getCurrentOpendProgressString"
           />
           <v-spacer />
           <wishlist-page-sort
@@ -38,7 +40,7 @@
 
         <wishlist-page-form
           v-else
-          :type="depth > 0 ? 'item' : 'wishlist'"
+          :type="depth >= 2 ? 'item' : 'wishlist'"
           @add-item="operation('add', $event)"
         />
       </template>
@@ -81,7 +83,7 @@
 </template>
 
 <script>
-import { mapActions, mapGetters, mapState } from "vuex";
+import { mapGetters, mapState } from "vuex";
 
 export default {
   name: "Home",
@@ -96,7 +98,6 @@ export default {
   data() {
     return {
       opendStack: [],
-      items: [],
       edit: false,
       showDetails: false,
       loading: false,
@@ -106,118 +107,77 @@ export default {
   },
 
   created() {
-    this.loading = true;
+    this.$store
+      .dispatch("db/initUserWishlistsObject", {
+        userId: this.getAuthUser.uid,
+      })
+      .then(() => {
+        this.opendStack.push(this.user_wishlists);
 
-    this.fetchAllUserWishlist({
-      userId: this.getAuthUser.uid,
-    }).then(() => {
-      // set user all wishlist as current showing items
-      this.items = this.all_wishlist;
-      this.loading = false;
-      this.doSort();
-    });
-  },
+        this.loading = true;
 
-  mounted() {
-    // console.log(this.);
+        this.$store
+          .dispatch("db/init", {
+            userId: this.getAuthUser.uid,
+          })
+          .then(() => {
+            this.loading = false;
+          });
+      });
   },
 
   computed: {
-    ...mapState("db", ["all_wishlist"]),
+    ...mapState("db", ["user_wishlists"]),
     ...mapGetters("auth", ["getAuthUser"]),
-    ...mapGetters("db", ["getWishlistItems", "getSubitems"]),
 
     // getters
-    getSuitableHeight() {
-      return this.$vuetify.breakpoint.height;
-    },
     depth() {
       return this.opendStack.length;
     },
-    currentWishlist() {
-      return this.opendStack[0];
-    },
     currentItem() {
-      return this.opendStack[1];
+      return this.opendStack[this.opendStack.length - 1];
     },
+    items() {
+      return this.currentItem ? this.currentItem.items : [];
+    },
+    getCurrentOpendName() {
+      return this.currentItem ? this.currentItem.name : undefined;
+    },
+    getCurrentOpendProgress() {
+      return this.currentItem ? this.currentItem.done : 0;
+    },
+    getCurrentOpendProgressString() {
+      return this.currentItem ? this.currentItem.getProgressString : "0 of 0";
+    },
+
+    // sort
     getSortMethods() {
       if (this.depth > 0) return ["alph", "numeric", "bool"];
       else return ["alph", "numeric", "bool", "date"];
     },
-    getCurrentOpendName() {
-      const item = this.opendStack[this.opendStack.length - 1];
-      return item ? item.name : undefined;
-    },
 
-    // calculations (done/undone)
-    totalDoneItems() {
-      let dones = 0;
-
-      this.items.forEach((item) => {
-        if (item.done) dones += 1;
-      });
-
-      return dones;
-    },
-    totalDoneWishlist() {
-      let done = 0;
-
-      this.all_wishlist.forEach((wishlist) => {
-        if (
-          wishlist.total_items != 0 &&
-          wishlist.total_items === wishlist.total_done
-        )
-          done += 1;
-      });
-
-      return done;
-    },
-    totalDone() {
-      if (this.depth == 0) return this.totalDoneWishlist;
-      else return this.totalDoneItems;
-    },
-    completionPercentage() {
-      if (this.depth == 0)
-        return (this.totalDoneWishlist / this.all_wishlist.length) * 100;
-      else return (this.totalDoneItems / this.items.length) * 100;
-    },
-
-    // calculations (cost)
-    totalCost() {
-      let total = 0;
-      this.items.forEach((item) => {
-        total += item.cost ? item.cost : item.total_cost;
-      });
-
-      return total;
-    },
-    totalSpent() {
-      let total = 0;
-      this.items.forEach((item) => {
-        if (item.done) total += item.cost;
-      });
-
-      return total;
-    },
-    totalRemaining() {
-      return this.computedCost(this.totalCost - this.totalSpent);
-    },
     costStats() {
       const stats = [
         {
           label: "Total Cost:",
           icon: "cash",
-          value: this.computedCost(this.totalCost) + " SAR",
+          value: this.currentItem
+            ? this.currentItem.total_cost + " SAR"
+            : "0 SAR",
         },
         {
           label: "Total Spent:",
           icon: "cash-minus",
-          value: this.computedCost(this.totalSpent) + " SAR",
+          value: this.currentItem
+            ? this.currentItem.total_spent + " SAR"
+            : "0 SAR",
         },
         {
           label: "Total Remaining:",
           icon: "cash-check",
-          value: this.totalRemaining + " SAR",
+          value: this.currentItem
+            ? this.currentItem.remaining + " SAR"
+            : "0 SAR",
         },
       ];
 
@@ -226,19 +186,6 @@ export default {
   },
 
   methods: {
-    ...mapActions("db", ["fetchAllUserWishlist", "fetchWishlistItems"]),
-
-    computedCost(cost) {
-      let costArray = cost.toString().split("");
-      // let costLength = costArray.length;
-
-      if (costArray.length === 4) costArray.splice(1, 0, ",");
-      else if (costArray.length === 5) costArray.splice(2, 0, ",");
-      else if (costArray.length === 6) costArray.splice(3, 0, ",");
-
-      return costArray.join("");
-    },
-
     // sort
     changeSortMethod(newMethod) {
       this.sort = newMethod.name;
@@ -264,65 +211,42 @@ export default {
 
     // items methods
     open(item) {
-      if (this.depth >= 0 && this.depth <= 1) this.opendStack.push(item);
-      else return;
-
-      if (this.depth == 1) {
-        this.loading = true;
-
-        this.fetchWishlistItems({
-          wishlistId: this.currentWishlist.id,
-        }).then(() => {
-          this.items = this.getWishlistItems(this.currentWishlist.id);
-          this.loading = false;
-        });
-      } else if (this.depth == 2) {
-        this.items = this.getSubitems(this.currentItem.id);
-      }
+      if (this.depth >= 1 && this.depth <= 2) this.opendStack.push(item);
     },
-    close() {
-      this.opendStack.pop();
 
-      if (this.depth == 1)
-        this.items = this.getWishlistItems(this.currentWishlist.id);
-      else if (this.depth == 0) this.items = this.all_wishlist;
+    close() {
+      if (this.depth > 1) this.opendStack.pop();
     },
 
     operation(type, payload) {
       this.loading = true;
+      const wishlist = this.opendStack[1],
+        item = this.opendStack[2];
 
       const obj = {
-        wishlistId: this.depth > 0 ? this.currentWishlist.id : undefined,
-        parentWishlist: this.depth > 0 ? this.currentWishlist.id : undefined,
-        parentItem: this.depth > 1 ? this.currentItem.id : undefined,
-        id: payload.id, // if delete
-        name: payload.name,
-        priority: "normal",
-        cost: payload.cost, // if item
-        done: payload.done, // if item
-        due_date: "", // if wishlist
-        userId: this.getAuthUser.uid,
+        wishlistId: wishlist ? wishlist.id : undefined,
+        parentId: item ? item.id : undefined,
+        itemId: payload.id,
+        item: {
+          name: payload.name,
+          priority: "normal",
+          cost: Number(payload.cost),
+          done: !isNaN(payload.done) ? payload.done : undefined,
+          due_date: "",
+          user: this.getAuthUser.uid,
+        },
       };
 
-      let operationName;
-      switch (type) {
-        case "add":
-          operationName = this.depth > 0 ? "addNewItem" : "addNewWishlist";
-          break;
-        case "update":
-          operationName = this.depth > 0 ? "updateItem" : "updateWishlist";
-          break;
-        case "delete":
-          operationName = this.depth > 0 ? "deleteItem" : "deleteWishlist";
-          break;
-        case "change_status":
-          operationName = "changeItemStatus";
-          break;
-      }
-
       this.$store
-        .dispatch(`db/${operationName}`, obj)
+        .dispatch(`db/operation`, {
+          type,
+          ...obj,
+        })
         .then(() => (this.loading = false));
+    },
+
+    done() {
+      this.edit = false;
     },
   },
 };

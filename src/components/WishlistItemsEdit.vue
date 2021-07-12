@@ -29,9 +29,6 @@ export default {
         ...newItem,
       });
     },
-    deleteItem(item) {
-      console.log(item);
-    },
   },
 };
 </script>
